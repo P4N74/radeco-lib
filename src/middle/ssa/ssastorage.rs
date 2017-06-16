@@ -175,10 +175,27 @@ impl SSAStorage {
         //radeco_trace!(logger::Event::SSAInsertNode(&ret, &n));
     }
 
-    fn remove_node(&mut self, exi: NodeIndex) {
+    fn remove_node(&mut self, exi: NodeIndex, flag: bool) {
         radeco_trace!(logger::Event::SSARemoveNode(&exi));
         // Remove the current association.
         //JENISH:: update edges?
+        if flag {
+            let mut walk = self.g.neighbors_directed(exi, EdgeDirection::Incoming).detach();
+            while let Some ((edge, _)) = walk.next(&self.g) {
+                match self.g[edge] {
+                    EdgeData::Control(_) => self.remove_edge(&edge),
+                    _ => {self.g.remove_edge(edge);}
+                };
+            }
+
+            walk = self.g.neighbors_directed(exi, EdgeDirection::Outgoing).detach();
+            while let Some ((edge, _)) = walk.next(&self.g) {
+                match self.g[edge] {
+                    EdgeData::Control(_) => self.remove_edge(&edge),
+                    _ => {self.g.remove_edge(edge);}
+                };
+            }
+        }
         self.g.remove_node(exi);
     }
 
@@ -206,11 +223,29 @@ impl SSAStorage {
             }
         }
 
+        walk = self.g.neighbors_directed(i, EdgeDirection::Outgoing).detach();
+        while let Some((edge, othernode)) = walk.next(&self.g) {
+            if let EdgeData::Data(d) = self.g[edge] {
+                match self.g[j] {
+                    NodeData::Op(_, _) | NodeData::RegisterState => {
+                        self.op_use(j, d, othernode);
+                    }
+                    NodeData::Phi(_, _) => {
+                        self.phi_use(j, othernode);
+                    }
+                    _ => {}
+                }
+            } else if let EdgeData::Selector = self.g[edge] {
+                let bb = self.block_of(&i);
+                self.mark_selector(bb, j);
+            }
+        }
+
         if self.start_node == i {
             self.start_node = j;
         }
 
-        self.remove_node(i);
+        self.remove_node(i, false);
     }
 
     fn insert_edge(&mut self, i: NodeIndex, j: NodeIndex, e: EdgeData) -> EdgeIndex {
@@ -792,7 +827,7 @@ impl SSAMod for SSAStorage {
     }
 
     fn remove(&mut self, node: NodeIndex) {
-        self.remove_node(node);
+        self.remove_node(node, true);
     }
 
     fn remove_edge(&mut self, i: &Self::CFEdgeRef) {
