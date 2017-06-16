@@ -178,6 +178,7 @@ impl SSAStorage {
     fn remove_node(&mut self, exi: NodeIndex) {
         radeco_trace!(logger::Event::SSARemoveNode(&exi));
         // Remove the current association.
+        //JENISH:: update edges?
         self.g.remove_node(exi);
     }
 
@@ -185,6 +186,8 @@ impl SSAStorage {
         radeco_trace!(logger::Event::SSAReplaceNode(&i, &j));
         // Before replace, we need to copy over the edges.
 
+        //JENISH :: The following should also happen for Outgoing edges??
+        //The outgoing edges from i would have a source node that does not exist
         let mut walk = self.g.neighbors_directed(i, EdgeDirection::Incoming).detach();
         while let Some((edge, othernode)) = walk.next(&self.g) {
             if let EdgeData::Data(d) = self.g[edge] {
@@ -224,6 +227,7 @@ impl SSAStorage {
     fn delete_edge(&mut self, i: NodeIndex, j: NodeIndex) {
         radeco_trace!(logger::Event::SSARemoveEdge(&i, &j));
         let e = self.g.find_edge(i, j);
+        //JENISH::update to nodes???
         if let Some(ei) = e {
             self.g.remove_edge(ei);
         }
@@ -472,6 +476,7 @@ impl CFGMod for SSAStorage {
                     }
                 }
                 if let Some(edge) = seledge {
+                    //JENISH:: Update nodes?
                     self.g.remove_edge(edge);
                 }
             }
@@ -479,6 +484,7 @@ impl CFGMod for SSAStorage {
     }
 
     fn remove_control_edge(&mut self, edge: Self::CFEdgeRef) {
+        //JENISH:: update nodes?
         self.g.remove_edge(edge);
     }
 
@@ -814,6 +820,7 @@ impl SSAMod for SSAStorage {
             }
         }
 
+        //JENISH:: update node?
         self.g.remove_edge(*i);
     }
 
